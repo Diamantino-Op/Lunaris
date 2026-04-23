@@ -1,0 +1,10 @@
+limine/
+edk2-ovmf/
+iso_root/
+*.iso
+*.hdd
+
+kernel/bin-*/
+kernel/obj-*/
+kernel/.cache/
+kernel/compile_commands.json

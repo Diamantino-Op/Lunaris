@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "cmake": true,
+        "wsl.exe": true,
+        "make": true,
+        "objdump": true
+    }
+}
