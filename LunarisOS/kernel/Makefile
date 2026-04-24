@@ -4,7 +4,7 @@ override OUTPUT := kernel
 ARCH ?= x86_64
 PREFIX ?= /usr/local
 
-LUNARIS_COMPILER ?= ../../Compiler/build-wsl/lunaris_compiler
+LUNARIS_COMPILER ?= ../../CompilerV2/build/lunaris_compiler_v2
 
 TOOLCHAIN ?=
 TOOLCHAIN_PREFIX ?=
@@ -65,7 +65,7 @@ override ASM_FILES := $(shell find -L src -type f \( -name '*.S' -o -name '*.asm
 override LUA_SOURCES := $(filter %.lua,$(LUA_FILES))
 override ASM_SOURCES_S := $(filter %.S,$(ASM_FILES))
 override ASM_SOURCES_ASM := $(filter %.asm,$(ASM_FILES))
-override LUA_OBJ := $(addprefix obj-$(ARCH)/,$(LUA_SOURCES:.lua=.lua.s.o))
+override LUA_OBJ := $(addprefix obj-$(ARCH)/,$(LUA_SOURCES:.lua=.lua.o))
 override ASM_OBJ := $(addprefix obj-$(ARCH)/,$(ASM_SOURCES_S:.S=.S.o) $(ASM_SOURCES_ASM:.asm=.asm.o))
 override OBJ := $(LUA_OBJ) $(ASM_OBJ)
 
@@ -76,13 +76,9 @@ bin-$(ARCH)/$(OUTPUT): Makefile linker-scripts/$(ARCH).lds $(OBJ)
 	mkdir -p "$(dir $@)"
 	$(LD) $(LDFLAGS) $(OBJ) -o $@
 
-obj-$(ARCH)/%.lua.s: %.lua Makefile
+obj-$(ARCH)/%.lua.o: %.lua Makefile $(LUNARIS_COMPILER)
 	mkdir -p "$(dir $@)"
 	$(LUNARIS_COMPILER) $< > $@
-
-obj-$(ARCH)/%.lua.s.o: obj-$(ARCH)/%.lua.s Makefile
-	mkdir -p "$(dir $@)"
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c -x assembler $< -o $@
 
 obj-$(ARCH)/%.S.o: %.S Makefile
 	mkdir -p "$(dir $@)"

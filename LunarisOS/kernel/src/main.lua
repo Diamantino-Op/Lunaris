@@ -26,8 +26,23 @@ packed struct limine_framebuffer_request {
     response: limine_framebuffer_response*
 }
 
-asm function limine_base_revision_ptr(): limine_base_revision* = limine_base_revision_ptr;
-asm function limine_framebuffer_request_ptr(): limine_framebuffer_request* = limine_framebuffer_request_ptr;
+packed struct limine_requests_start_marker {
+    q0: u64
+    q1: u64
+    q2: u64
+    q3: u64
+}
+
+packed struct limine_requests_end_marker {
+    q0: u64
+    q1: u64
+}
+
+data limine_requests_start_marker: limine_requests_start_marker section ".limine_requests_start" = 0xf6b8f4b39de7d1ae, 0xfab91a6940fcb9cf, 0x785c6ed015d3e316, 0x181e920a7852b9d9
+data limine_base_revision: limine_base_revision section ".limine_requests" = 0xf9562b2d5c95a6c8, 0x6a7b384944536bdc, 6
+data limine_framebuffer_request: limine_framebuffer_request section ".limine_requests" = 0xc7b1dd30df4c8b88, 0x0a82e883a194f07b, 0x9d5827dcd881dd75, 0xa3148604f6fab11b, 0, 0
+data limine_requests_end_marker: limine_requests_end_marker section ".limine_requests_end" = 0xadc0e0531bb10d03, 0x9572709f31764c62
+
 asm function hlt(): void = hlt;
 
 function hcf()
@@ -36,19 +51,37 @@ function hcf()
     end
 end
 
+function hcf_base_revision()
+    while 1 do
+        hlt()
+    end
+end
+
+function hcf_framebuffer_response()
+    while 1 do
+        hlt()
+    end
+end
+
+function hcf_framebuffer_count()
+    while 1 do
+        hlt()
+    end
+end
+
 function kernel_main()
-    local base_revision: limine_base_revision* = limine_base_revision_ptr()
-    if base_revision.revision != 0 then
-        hcf()
+    local base_revision: limine_base_revision* = limine_base_revision
+    if base_revision.revision ~= 0 then
+        hcf_base_revision()
     end
 
-    local framebuffer_request: limine_framebuffer_request* = limine_framebuffer_request_ptr()
+    local framebuffer_request: limine_framebuffer_request* = limine_framebuffer_request
     if framebuffer_request.response == 0 then
-        hcf()
+        hcf_framebuffer_response()
     end
 
     if framebuffer_request.response.framebuffer_count < 1 then
-        hcf()
+        hcf_framebuffer_count()
     end
 
     local framebuffer: limine_framebuffer* = framebuffer_request.response.framebuffers[0]

@@ -3,6 +3,9 @@
         "cmake": true,
         "wsl.exe": true,
         "make": true,
-        "objdump": true
+        "objdump": true,
+        "nm": true,
+        "./build/lunaris_compiler_v2_tests": true,
+        "/home/diamantino/Projects/Lunaris/CompilerV2/build/lunaris_compiler_v2_tests": true
     }
 }
