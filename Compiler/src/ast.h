@@ -97,6 +97,19 @@ struct StructDecl {
     std::vector<FieldDecl> fields;
 };
 
+struct DataDecl {
+    SourceLocation location;
+    std::string name;
+    TypeRef type;
+    std::optional<std::string> section_name;
+    std::vector<std::string> values;
+};
+
+struct RequireDecl {
+    SourceLocation location;
+    std::string module;
+};
+
 struct FunctionDecl {
     SourceLocation location;
     bool external_asm = false;
@@ -108,7 +121,9 @@ struct FunctionDecl {
 };
 
 struct Program {
+    std::vector<RequireDecl> imports;
     std::vector<StructDecl> structs;
+    std::vector<DataDecl> data;
     std::vector<FunctionDecl> functions;
 };
 

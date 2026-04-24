@@ -24,6 +24,8 @@ public:
 
 private:
     StructDecl parse_struct_decl(bool packed);
+    DataDecl parse_data_decl();
+    RequireDecl parse_require_decl();
     FunctionDecl parse_function_decl(bool external_asm);
     std::vector<Statement> parse_block();
     Statement parse_statement();

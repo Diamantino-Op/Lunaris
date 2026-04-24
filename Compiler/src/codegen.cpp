@@ -121,6 +121,15 @@ std::optional<const FunctionDecl*> CodeGenerator::find_function(const std::strin
     return std::nullopt;
 }
 
+std::optional<const DataDecl*> CodeGenerator::find_data(const std::string& name) const {
+    for (const auto& declaration : program_.data) {
+        if (declaration.name == name) {
+            return &declaration;
+        }
+    }
+    return std::nullopt;
+}
+
 void CodeGenerator::emit_line(const std::string& line) {
     assembly_ << line << '\n';
 }
@@ -141,6 +150,22 @@ void CodeGenerator::emit_load(std::size_t size) {
     case 4: emit_line("    mov eax, DWORD PTR [rax]"); break;
     default: emit_line("    mov rax, QWORD PTR [rax]"); break;
     }
+}
+
+void CodeGenerator::emit_data(const DataDecl& declaration) {
+    const std::string section_name = declaration.section_name.value_or(".limine_requests");
+    emit_line(".section " + section_name + ",\"aw\",@progbits");
+    emit_line(declaration.name + ":");
+    for (const auto& value : declaration.values) {
+        emit_line("    .quad " + value);
+    }
+}
+
+bool CodeGenerator::data_is_aggregate(const DataDecl& declaration) const {
+    if (declaration.type.kind != TypeKind::Named) {
+        return false;
+    }
+    return semantics_.struct_layouts.find(declaration.type.name) != semantics_.struct_layouts.end();
 }
 
 std::string CodeGenerator::operand_for_register(std::size_t index) const {
@@ -168,7 +193,7 @@ void CodeGenerator::collect_function_layout(FunctionContext& context, const Func
                         type = inferred->type;
                     }
                 }
-                if (!context.variables.contains(statement.name)) {
+                if (context.variables.find(statement.name) == context.variables.end()) {
                     allocate(statement.name, type);
                 }
             }
@@ -195,6 +220,13 @@ std::optional<CodeGenerator::ExpressionValue> CodeGenerator::infer_expression_ty
         if (variable != context.variables.end()) {
             return ExpressionValue{variable->second.type, true};
         }
+        auto data = find_data(expression.text);
+        if (data.has_value()) {
+            if (data_is_aggregate(**data)) {
+                return ExpressionValue{TypeRef::pointer((*data)->type), true};
+            }
+            return ExpressionValue{(*data)->type, true};
+        }
         return std::nullopt;
     }
     case ExpressionKind::Number:
@@ -216,7 +248,7 @@ std::optional<CodeGenerator::ExpressionValue> CodeGenerator::infer_expression_ty
         }
         return std::nullopt;
     case ExpressionKind::Binary:
-        if (expression.op == "==" || expression.op == "!=" || expression.op == "<" || expression.op == "<=" || expression.op == ">" || expression.op == ">=") {
+        if (expression.op == "==" || expression.op == "!=" || expression.op == "~=" || expression.op == "<" || expression.op == "<=" || expression.op == ">" || expression.op == ">=") {
             return ExpressionValue{TypeRef::named("i64"), true};
         }
         if (expression.left) {
@@ -288,8 +320,18 @@ CodeGenerator::ExpressionValue CodeGenerator::compile_expression(const Expressio
     case ExpressionKind::Identifier: {
         auto variable = context.variables.find(expression.text);
         if (variable == context.variables.end()) {
-            diagnostics_.error(expression.location, "unknown identifier: " + expression.text);
-            return ExpressionValue{TypeRef::named("i64"), false};
+            auto data = find_data(expression.text);
+            if (!data.has_value()) {
+                diagnostics_.error(expression.location, "unknown identifier: " + expression.text);
+                return ExpressionValue{TypeRef::named("i64"), false};
+            }
+            if (data_is_aggregate(**data)) {
+                emit_line("    lea rax, [rip + " + (*data)->name + "]");
+                return ExpressionValue{TypeRef::pointer((*data)->type), true};
+            }
+            emit_line("    lea rax, [rip + " + (*data)->name + "]");
+            emit_load(size_of((*data)->type));
+            return ExpressionValue{(*data)->type, true};
         }
         emit_line("    mov rax, QWORD PTR [rbp - " + std::to_string(variable->second.offset) + "]");
         return ExpressionValue{variable->second.type, true};
@@ -307,8 +349,13 @@ CodeGenerator::ExpressionValue CodeGenerator::compile_expression(const Expressio
             if (expression.right->kind == ExpressionKind::Identifier) {
                 auto variable = context.variables.find(expression.right->text);
                 if (variable == context.variables.end()) {
-                    diagnostics_.error(expression.location, "unknown identifier: " + expression.right->text);
-                    return ExpressionValue{TypeRef::named("i64"), false};
+                    auto data = find_data(expression.right->text);
+                    if (!data.has_value()) {
+                        diagnostics_.error(expression.location, "unknown identifier: " + expression.right->text);
+                        return ExpressionValue{TypeRef::named("i64"), false};
+                    }
+                    emit_line("    lea rax, [rip + " + (*data)->name + "]");
+                    return ExpressionValue{TypeRef::pointer((*data)->type), true};
                 }
                 emit_line("    lea rax, [rbp - " + std::to_string(variable->second.offset) + "]");
                 return ExpressionValue{TypeRef::pointer(variable->second.type), true};
@@ -338,17 +385,16 @@ CodeGenerator::ExpressionValue CodeGenerator::compile_expression(const Expressio
         break;
     case ExpressionKind::Binary:
         if (expression.left && expression.right) {
-            if (expression.op == "==" || expression.op == "!=" || expression.op == "<" || expression.op == "<=" || expression.op == ">" || expression.op == ">=") {
+            if (expression.op == "==" || expression.op == "!=" || expression.op == "~=" || expression.op == "<" || expression.op == "<=" || expression.op == ">" || expression.op == ">=") {
                 compile_expression(*expression.left, context, function);
                 emit_line("    push rax");
                 compile_expression(*expression.right, context, function);
                 emit_line("    mov rdx, rax");
                 emit_line("    pop rax");
                 emit_line("    cmp rax, rdx");
-                emit_line("    mov rax, 0");
                 if (expression.op == "==") {
                     emit_line("    sete al");
-                } else if (expression.op == "!=") {
+                } else if (expression.op == "!=" || expression.op == "~=") {
                     emit_line("    setne al");
                 } else if (expression.op == "<") {
                     emit_line("    setl al");
@@ -359,6 +405,7 @@ CodeGenerator::ExpressionValue CodeGenerator::compile_expression(const Expressio
                 } else if (expression.op == ">=") {
                     emit_line("    setge al");
                 }
+                emit_line("    movzx eax, al");
                 return ExpressionValue{TypeRef::named("i64"), true};
             }
 
@@ -513,7 +560,12 @@ void CodeGenerator::compile_lvalue_store(const Expression& target, const Functio
     if (target.kind == ExpressionKind::Identifier) {
         auto variable = context.variables.find(target.text);
         if (variable == context.variables.end()) {
-            diagnostics_.error(target.location, "unknown identifier: " + target.text);
+            auto data = find_data(target.text);
+            if (!data.has_value()) {
+                diagnostics_.error(target.location, "unknown identifier: " + target.text);
+                return;
+            }
+            emit_line("    lea rax, [rip + " + (*data)->name + "]");
             return;
         }
         emit_line("    lea rax, [rbp - " + std::to_string(variable->second.offset) + "]");
@@ -759,6 +811,13 @@ CodegenResult CodeGenerator::generate() {
 
     emit_startup_stub();
     emit_line("");
+
+    if (!program_.data.empty()) {
+        for (const auto& data : program_.data) {
+            emit_data(data);
+            emit_line("");
+        }
+    }
 
     for (const auto& function : program_.functions) {
         emit_function(function);

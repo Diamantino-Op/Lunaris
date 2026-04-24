@@ -1,6 +1,0 @@
-/mnt/d/Lunaris/Compiler/build-wsl/CMakeFiles/lunaris_compiler_core.dir
-/mnt/d/Lunaris/Compiler/build-wsl/CMakeFiles/lunaris_compiler.dir
-/mnt/d/Lunaris/Compiler/build-wsl/CMakeFiles/lunaris_compiler_tests.dir
-/mnt/d/Lunaris/Compiler/build-wsl/CMakeFiles/test.dir
-/mnt/d/Lunaris/Compiler/build-wsl/CMakeFiles/edit_cache.dir
-/mnt/d/Lunaris/Compiler/build-wsl/CMakeFiles/rebuild_cache.dir

@@ -13,7 +13,9 @@ std::string_view to_string(TokenKind kind) {
     case TokenKind::KeywordReturn: return "return";
     case TokenKind::KeywordStruct: return "struct";
     case TokenKind::KeywordAsm: return "asm";
+    case TokenKind::KeywordRequire: return "require";
     case TokenKind::KeywordPacked: return "packed";
+    case TokenKind::KeywordData: return "data";
     case TokenKind::KeywordEnd: return "end";
     case TokenKind::KeywordExtern: return "extern";
     case TokenKind::KeywordTrue: return "true";
@@ -36,6 +38,7 @@ std::string_view to_string(TokenKind kind) {
     case TokenKind::Equal: return "=";
     case TokenKind::EqualEqual: return "==";
     case TokenKind::BangEqual: return "!=";
+    case TokenKind::TildeEqual: return "~=";
     case TokenKind::Less: return "<";
     case TokenKind::LessEqual: return "<=";
     case TokenKind::Greater: return ">";

@@ -5,12 +5,14 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(LUNARIS_BUILD_TESTS "Build compiler tests" ON)
+option(LUNARIS_V2_BUILD_TESTS "Build compiler tests" ON)
 
 add_library(lunaris_compiler_core
     src/diagnostic.cpp
+    src/machine_backend.cpp
     src/codegen.cpp
     src/lexer.cpp
+    src/module_loader.cpp
     src/parser.cpp
     src/sema.cpp
     src/token.cpp
@@ -26,7 +28,7 @@ add_executable(lunaris_compiler
 
 target_link_libraries(lunaris_compiler PRIVATE lunaris_compiler_core)
 
-if (LUNARIS_BUILD_TESTS)
+if (LUNARIS_V2_BUILD_TESTS)
     enable_testing()
     add_executable(lunaris_compiler_tests
         tests/test_main.cpp

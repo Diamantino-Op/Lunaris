@@ -20,7 +20,7 @@ std::size_t SemanticAnalyzer::align_up(std::size_t value, std::size_t alignment)
 
 void SemanticAnalyzer::collect_structs() {
     for (const auto& declaration : program_.structs) {
-        if (struct_declarations_.contains(declaration.name)) {
+        if (struct_declarations_.find(declaration.name) != struct_declarations_.end()) {
             diagnostics_.error(declaration.location, "duplicate struct declaration: " + declaration.name);
             continue;
         }
@@ -28,10 +28,54 @@ void SemanticAnalyzer::collect_structs() {
     }
 }
 
+void SemanticAnalyzer::collect_data() {
+    for (const auto& declaration : program_.data) {
+        if (data_layouts_.find(declaration.name) != data_layouts_.end()) {
+            diagnostics_.error(declaration.location, "duplicate declaration name: " + declaration.name);
+            continue;
+        }
+        auto resolved = resolve_type(declaration.type);
+        if (!resolved.has_value()) {
+            diagnostics_.error(declaration.location, "unknown data type: " + declaration.type.name);
+            continue;
+        }
+        if (resolved->size % 8 != 0) {
+            diagnostics_.error(declaration.location, "data declarations currently require 8-byte aligned types");
+            continue;
+        }
+        if (declaration.values.size() * 8 != resolved->size) {
+            diagnostics_.error(declaration.location, "data initializer count does not match type size");
+            continue;
+        }
+        DataLayout layout;
+        layout.name = declaration.name;
+        layout.type = declaration.type;
+        layout.section_name = declaration.section_name;
+        layout.size = resolved->size;
+        layout.values = declaration.values;
+        data_layouts_[declaration.name] = std::move(layout);
+    }
+}
+
 void SemanticAnalyzer::collect_function_signatures() {
     std::unordered_map<std::string, const FunctionDecl*> function_names;
     for (const auto& declaration : program_.functions) {
-        if (function_names.contains(declaration.name)) {
+        bool duplicate_name = false;
+        for (const auto& data : program_.data) {
+            if (data.name == declaration.name) {
+                diagnostics_.error(declaration.location, "duplicate declaration name: " + declaration.name);
+                duplicate_name = true;
+                break;
+            }
+        }
+        if (duplicate_name) {
+            continue;
+        }
+        if (data_layouts_.find(declaration.name) != data_layouts_.end()) {
+            diagnostics_.error(declaration.location, "duplicate declaration name: " + declaration.name);
+            continue;
+        }
+        if (function_names.find(declaration.name) != function_names.end()) {
             diagnostics_.error(declaration.location, "duplicate function declaration: " + declaration.name);
             continue;
         }
@@ -103,7 +147,7 @@ SemanticResult SemanticAnalyzer::analyze() {
     while (progress) {
         progress = false;
         for (const auto& declaration : program_.structs) {
-            if (struct_layouts_.contains(declaration.name)) {
+            if (struct_layouts_.find(declaration.name) != struct_layouts_.end()) {
                 continue;
             }
 
@@ -118,10 +162,12 @@ SemanticResult SemanticAnalyzer::analyze() {
     }
 
     for (const auto& declaration : program_.structs) {
-        if (!struct_layouts_.contains(declaration.name)) {
+        if (struct_layouts_.find(declaration.name) == struct_layouts_.end()) {
             diagnostics_.error(declaration.location, "unable to resolve layout for struct: " + declaration.name);
         }
     }
+
+    collect_data();
 
     for (const auto& declaration : program_.functions) {
         for (const auto& parameter : declaration.parameters) {
@@ -137,6 +183,7 @@ SemanticResult SemanticAnalyzer::analyze() {
     SemanticResult result;
     result.ok = !diagnostics_.has_errors();
     result.struct_layouts = std::move(struct_layouts_);
+    result.data_layouts = std::move(data_layouts_);
     result.diagnostics = diagnostics_.diagnostics();
     return result;
 }

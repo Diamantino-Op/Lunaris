@@ -4,7 +4,7 @@ override OUTPUT := kernel
 ARCH ?= x86_64
 PREFIX ?= /usr/local
 
-LUNARIS_COMPILER ?= ../../CompilerV2/build/lunaris_compiler_v2
+LUNARIS_COMPILER ?= ../../Compiler/build/lunaris_compiler
 
 TOOLCHAIN ?=
 TOOLCHAIN_PREFIX ?=

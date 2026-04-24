@@ -4,8 +4,6 @@ iso_root/
 *.iso
 *.hdd
 
-/CompilerV2/build
-
 kernel/bin-*/
 kernel/obj-*/
 kernel/.cache/

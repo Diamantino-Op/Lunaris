@@ -62,6 +62,19 @@ void Parser::synchronize() {
 
 TypeRef Parser::parse_type() {
     Token name = consume_identifier("expected type name");
+    if (name.lexeme == "ptr") {
+        if (match(TokenKind::LParen) || match(TokenKind::Less)) {
+            TokenKind closing_kind = previous().kind == TokenKind::LParen ? TokenKind::RParen : TokenKind::Greater;
+            std::string closing_message = closing_kind == TokenKind::RParen ? "expected ')' after pointer type" : "expected '>' after pointer type";
+            TypeRef type = parse_type();
+            consume(closing_kind, std::move(closing_message));
+            while (match(TokenKind::Star)) {
+                type = TypeRef::pointer(std::move(type));
+            }
+            return TypeRef::pointer(std::move(type));
+        }
+    }
+
     TypeRef type = TypeRef::named(name.lexeme);
     while (match(TokenKind::Star)) {
         type = TypeRef::pointer(std::move(type));
@@ -176,6 +189,7 @@ int Parser::precedence_of(TokenKind kind) const {
     switch (kind) {
     case TokenKind::EqualEqual:
     case TokenKind::BangEqual:
+    case TokenKind::TildeEqual:
         return 1;
     case TokenKind::Less:
     case TokenKind::LessEqual:
@@ -223,6 +237,42 @@ std::vector<Statement> Parser::parse_block() {
         body.push_back(parse_statement());
     }
     return body;
+}
+
+DataDecl Parser::parse_data_decl() {
+    DataDecl declaration;
+    declaration.location = previous().location;
+    declaration.name = consume_identifier("expected data name").lexeme;
+    consume(TokenKind::Colon, "expected ':' after data name");
+    declaration.type = parse_type();
+    if (match(TokenKind::KeywordSection)) {
+        declaration.section_name = consume(TokenKind::String, "expected string literal after 'section'").lexeme;
+    }
+    consume(TokenKind::Equal, "expected '=' after data type");
+
+    while (!check(TokenKind::Semicolon) && !check(TokenKind::EndOfFile)) {
+        Token value = consume(TokenKind::Number, "expected numeric initializer for data declaration");
+        declaration.values.push_back(value.lexeme);
+        if (!match(TokenKind::Comma)) {
+            break;
+        }
+    }
+
+    match(TokenKind::Semicolon);
+    return declaration;
+}
+
+RequireDecl Parser::parse_require_decl() {
+    RequireDecl declaration;
+    declaration.location = previous().location;
+    if (check(TokenKind::String) || check(TokenKind::Identifier)) {
+        declaration.module = current().lexeme;
+        ++index_;
+    } else {
+        diagnostics_.error(current().location, "expected module name after 'require'");
+    }
+    match(TokenKind::Semicolon);
+    return declaration;
 }
 
 Statement Parser::parse_statement() {
@@ -300,9 +350,9 @@ StructDecl Parser::parse_struct_decl(bool packed) {
     declaration.packed = packed;
     declaration.location = previous().location;
     declaration.name = consume_identifier("expected struct name").lexeme;
-    consume(TokenKind::LBrace, "expected '{' after struct name");
+    
 
-    while (!check(TokenKind::RBrace) && !check(TokenKind::EndOfFile)) {
+    while (!check(TokenKind::KeywordEnd) && !check(TokenKind::EndOfFile)) {
         Token field_name = consume_identifier("expected field name");
         consume(TokenKind::Colon, "expected ':' after field name");
         FieldDecl field;
@@ -313,7 +363,7 @@ StructDecl Parser::parse_struct_decl(bool packed) {
         match(TokenKind::Semicolon);
     }
 
-    consume(TokenKind::RBrace, "expected '}' after struct body");
+    consume(TokenKind::KeywordEnd, "expected 'end' to close struct");
     return declaration;
 }
 
@@ -375,6 +425,16 @@ ParseResult Parser::parse() {
 
         if (match(TokenKind::KeywordStruct)) {
             program_.structs.push_back(parse_struct_decl(false));
+            continue;
+        }
+
+        if (match(TokenKind::KeywordData)) {
+            program_.data.push_back(parse_data_decl());
+            continue;
+        }
+
+        if (match(TokenKind::KeywordRequire)) {
+            program_.imports.push_back(parse_require_decl());
             continue;
         }
 

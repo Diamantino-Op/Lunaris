@@ -13,5 +13,6 @@ kmain:
     push rbp
     mov rbp, rsp
     and rsp, -16
+    cli
     call kernel_main
     jmp hcf

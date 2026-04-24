@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/lunaris_compiler.dir/src/main.cpp.o -o lunaris_compiler  liblunaris_compiler_core.a 

@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/lunaris_compiler_tests.dir/tests/test_main.cpp.o CMakeFiles/lunaris_compiler_tests.dir/tests/lexer_tests.cpp.o CMakeFiles/lunaris_compiler_tests.dir/tests/parser_tests.cpp.o -o lunaris_compiler_tests  liblunaris_compiler_core.a 

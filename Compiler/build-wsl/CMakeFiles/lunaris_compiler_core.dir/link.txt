@@ -1,2 +1,0 @@
-/usr/bin/ar qc liblunaris_compiler_core.a CMakeFiles/lunaris_compiler_core.dir/src/diagnostic.cpp.o CMakeFiles/lunaris_compiler_core.dir/src/codegen.cpp.o CMakeFiles/lunaris_compiler_core.dir/src/lexer.cpp.o CMakeFiles/lunaris_compiler_core.dir/src/parser.cpp.o CMakeFiles/lunaris_compiler_core.dir/src/sema.cpp.o CMakeFiles/lunaris_compiler_core.dir/src/token.cpp.o
-/usr/bin/ranlib liblunaris_compiler_core.a

@@ -43,6 +43,7 @@ private:
 
     void emit_line(const std::string& line);
     void emit_function(const FunctionDecl& declaration);
+    void emit_data(const DataDecl& declaration);
     void emit_startup_stub();
     void collect_function_layout(FunctionContext& context, const FunctionDecl& declaration);
     std::size_t align_up(std::size_t value, std::size_t alignment) const;
@@ -60,7 +61,9 @@ private:
     std::string make_label(const std::string& prefix);
     std::string escape_string(const std::string& value) const;
     std::string operand_for_register(std::size_t index) const;
+    bool data_is_aggregate(const DataDecl& declaration) const;
     std::optional<const FunctionDecl*> find_function(const std::string& name) const;
+    std::optional<const DataDecl*> find_data(const std::string& name) const;
 
     const Program& program_;
     const SemanticResult& semantics_;

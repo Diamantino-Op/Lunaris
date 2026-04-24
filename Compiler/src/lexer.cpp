@@ -65,7 +65,10 @@ Token Lexer::lex_identifier_or_keyword() {
     else if (lexeme == "return") kind = TokenKind::KeywordReturn;
     else if (lexeme == "struct") kind = TokenKind::KeywordStruct;
     else if (lexeme == "asm") kind = TokenKind::KeywordAsm;
+    else if (lexeme == "require") kind = TokenKind::KeywordRequire;
     else if (lexeme == "packed") kind = TokenKind::KeywordPacked;
+    else if (lexeme == "data") kind = TokenKind::KeywordData;
+    else if (lexeme == "section") kind = TokenKind::KeywordSection;
     else if (lexeme == "end") kind = TokenKind::KeywordEnd;
     else if (lexeme == "extern") kind = TokenKind::KeywordExtern;
     else if (lexeme == "if") kind = TokenKind::KeywordIf;
@@ -82,8 +85,16 @@ Token Lexer::lex_identifier_or_keyword() {
 Token Lexer::lex_number() {
     SourceLocation start = location_;
     std::string lexeme;
-    while (std::isdigit(static_cast<unsigned char>(peek()))) {
+    if (peek() == '0' && (peek(1) == 'x' || peek(1) == 'X')) {
         lexeme.push_back(advance());
+        lexeme.push_back(advance());
+        while (std::isxdigit(static_cast<unsigned char>(peek()))) {
+            lexeme.push_back(advance());
+        }
+    } else {
+        while (std::isdigit(static_cast<unsigned char>(peek()))) {
+            lexeme.push_back(advance());
+        }
     }
     return Token{TokenKind::Number, std::move(lexeme), start};
 }
@@ -96,6 +107,45 @@ Token Lexer::lex_string() {
         if (peek() == '\n') {
             diagnostics_.error(start, "unterminated string literal");
             break;
+        }
+        if (peek() == '\\') {
+            advance();
+            char escape = peek();
+            if (escape == '\0') {
+                diagnostics_.error(start, "unterminated escape sequence in string literal");
+                break;
+            }
+            switch (escape) {
+            case 'n': lexeme.push_back('\n'); advance(); break;
+            case 'r': lexeme.push_back('\r'); advance(); break;
+            case 't': lexeme.push_back('\t'); advance(); break;
+            case '0': lexeme.push_back('\0'); advance(); break;
+            case 'e': lexeme.push_back('\x1b'); advance(); break;
+            case '\\': lexeme.push_back('\\'); advance(); break;
+            case '"': lexeme.push_back('"'); advance(); break;
+            case 'x': {
+                advance();
+                int value = 0;
+                int digits = 0;
+                while (digits < 2 && std::isxdigit(static_cast<unsigned char>(peek()))) {
+                    char digit = advance();
+                    value *= 16;
+                    if (digit >= '0' && digit <= '9') value += digit - '0';
+                    else if (digit >= 'a' && digit <= 'f') value += 10 + (digit - 'a');
+                    else if (digit >= 'A' && digit <= 'F') value += 10 + (digit - 'A');
+                    ++digits;
+                }
+                if (digits == 0) {
+                    diagnostics_.error(start, "expected hex digits after \\x escape");
+                }
+                lexeme.push_back(static_cast<char>(value));
+                break;
+            }
+            default:
+                lexeme.push_back(advance());
+                break;
+            }
+            continue;
         }
         lexeme.push_back(advance());
     }
@@ -152,6 +202,16 @@ std::vector<Token> Lexer::lex() {
             } else {
                 diagnostics_.error(start, "unexpected character: !");
                 tokens.push_back(make_token(TokenKind::Unknown, "!", start));
+            }
+            break;
+        case '~':
+            advance();
+            if (peek() == '=') {
+                advance();
+                tokens.push_back(make_token(TokenKind::TildeEqual, "~=", start));
+            } else {
+                diagnostics_.error(start, "unexpected character: ~");
+                tokens.push_back(make_token(TokenKind::Unknown, "~", start));
             }
             break;
         case '<':

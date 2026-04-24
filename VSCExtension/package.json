@@ -1,0 +1,43 @@
+{
+  "name": "lunaris-lua-tools",
+  "displayName": "Lunaris Lua Tools",
+  "description": "VS Code language support for Lunaris' custom Lua dialect.",
+  "version": "0.0.12",
+  "publisher": "lunaris",
+  "engines": {
+    "vscode": "^1.87.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:lua"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "lunaris.lua.injection",
+        "path": "./syntaxes/lunaris-lua.injection.tmLanguage.json",
+        "injectTo": [
+          "source.lua"
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "vscode:prepublish": "npm run compile"
+  },
+  "dependencies": {
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.11",
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.87.0",
+    "typescript": "^5.4.5"
+  }
+}
